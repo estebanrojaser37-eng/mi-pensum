@@ -1,0 +1,49 @@
+<svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="anilloExterior" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5EC6E8"/>
+      <stop offset="50%" stop-color="#2E86C1"/>
+      <stop offset="100%" stop-color="#1B4F72"/>
+    </linearGradient>
+    <linearGradient id="ondaClara" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2E86C1"/>
+      <stop offset="100%" stop-color="#7FD4F0"/>
+    </linearGradient>
+    <linearGradient id="llama" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8B1A1A"/>
+      <stop offset="100%" stop-color="#C0392B"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="500" cy="500" r="500" fill="white"/>
+
+  <!-- Anillo exterior grueso -->
+  <circle cx="500" cy="500" r="360" fill="none" stroke="url(#anilloExterior)" stroke-width="26"/>
+  <!-- Anillo interior fino -->
+  <circle cx="500" cy="500" r="310" fill="none" stroke="#1B4F72" stroke-width="4"/>
+
+  <!-- FARES grande, estilo elegante -->
+  <text x="500" y="470" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="bold" font-size="150" fill="#2E5FA8" letter-spacing="6">
+    FARES
+  </text>
+
+  <!-- Subtítulo -->
+  <text x="500" y="540" text-anchor="middle" font-family="'Trebuchet MS', 'Segoe UI', sans-serif" font-size="42" fill="#1a1a2e" letter-spacing="2">
+    Seminario Bíblico
+  </text>
+
+  <!-- Líneas onduladas -->
+  <path d="M 110 640 Q 300 600 500 630 T 890 615" fill="none" stroke="url(#ondaClara)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 150 660 Q 320 625 500 650 T 850 630" fill="none" stroke="#7FD4F0" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Llama -->
+  <path d="M500 640
+           C 470 690, 460 730, 485 765
+           C 465 745, 460 700, 490 655
+           C 520 700, 530 745, 500 775
+           C 545 750, 550 700, 500 640 Z"
+        fill="url(#llama)"/>
+
+  <!-- Anillo exterior inferior (grosor variable para dar efecto de cinta) -->
+  <circle cx="500" cy="500" r="360" fill="none" stroke="#1B4F72" stroke-width="2" opacity="0.4"/>
+</svg>

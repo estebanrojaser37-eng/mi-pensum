@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "75410611076",
+    "project_id": "mi-pensum-42c73",
+    "storage_bucket": "mi-pensum-42c73.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:75410611076:android:7d099c0a1a092dd23cdbd1",
+        "android_client_info": {
+          "package_name": "com.iglesiafares.mipensum"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsnllsz3vRcBppAogSt2vnxF_vX9qVhJE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

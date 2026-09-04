@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">mi-pensum</string>
+    <string name="title_activity_main">mi-pensum</string>
+    <string name="package_name">com.iglesiafares.mipensum</string>
+    <string name="custom_url_scheme">com.iglesiafares.mipensum</string>
+</resources>
