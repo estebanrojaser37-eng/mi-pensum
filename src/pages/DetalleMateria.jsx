@@ -7,6 +7,13 @@ import { descargarArchivo } from '../lib/descargas.js'
 const ICONO_TIPO = { word: '📄', excel: '📊', pdf: '📕', otro: '📎' }
 const NOMBRE_ANIO = { 1: 'Primer año', 2: 'Segundo año', 3: 'Tercer año' }
 
+// Limpia el nombre de archivo antes de usarlo en la ruta de Storage:
+// quita acentos, espacios y caracteres especiales que Supabase Storage rechaza.
+function sanitizarNombreArchivo(nombre) {
+  const sinAcentos = nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return sinAcentos.replace(/[^a-zA-Z0-9.\-_]/g, '_').replace(/_+/g, '_')
+}
+
 function ModalEvaluacion({ onClose, onCreada, materiaId }) {
   const [nombre, setNombre] = useState('')
   const [fechaLimite, setFechaLimite] = useState('')
@@ -139,7 +146,11 @@ function FilaEvaluacionAdmin({ evaluacion, onBorrar }) {
                 <button onClick={() => descargarEntrega(e)} className="text-brand hover:underline text-xs">
                   Descargar
                 </button>
-                <button onClick={() => pedirCalificacion(e)} className="font-semibold text-brand hover:underline text-xs">
+                <button
+                  onClick={() => pedirCalificacion(e)}
+                  className="font-semibold text-brand hover:underline text-xs"
+                  title={e.calificacion != null ? 'Toca para cambiar la calificación' : 'Toca para asignar una calificación'}
+                >
                   {e.calificacion != null ? e.calificacion : 'Calificar'}
                 </button>
               </div>
@@ -175,7 +186,8 @@ function FilaEvaluacionEstudiante({ evaluacion, userId }) {
     if (!file) return
     setSubiendo(true)
 
-    const storagePath = `${userId}/${evaluacion.id}_${file.name}`
+    const nombreLimpio = sanitizarNombreArchivo(file.name)
+    const storagePath = `${userId}/${evaluacion.id}_${nombreLimpio}`
     const { error: errorSubida } = await supabase.storage
       .from('entregas')
       .upload(storagePath, file, { upsert: true })
@@ -214,7 +226,11 @@ function FilaEvaluacionEstudiante({ evaluacion, userId }) {
               {subiendo ? 'Subiendo...' : entrega ? 'Reemplazar entrega' : '+ Subir entrega'}
               <input type="file" className="hidden" onChange={subirArchivo} disabled={subiendo} />
             </label>
-            {entrega && <p className="text-xs text-gray-400 mt-1">Pendiente de calificación</p>}
+            {entrega ? (
+              <p className="text-xs text-gray-400 mt-1">Pendiente de calificación. Puedes reemplazarla mientras no te califiquen.</p>
+            ) : (
+              <p className="text-xs text-gray-400 mt-1">Tu profesor podrá ver y calificar este archivo.</p>
+            )}
           </>
         )}
       </div>
@@ -284,7 +300,8 @@ export default function DetalleMateria() {
       : ext === 'pdf'
       ? 'pdf'
       : 'otro'
-    const storagePath = `${id}/${Date.now()}_${file.name}`
+    const nombreLimpio = sanitizarNombreArchivo(file.name)
+    const storagePath = `${id}/${Date.now()}_${nombreLimpio}`
 
     const { error: errorSubida } = await supabase.storage.from('guias').upload(storagePath, file)
 
@@ -380,16 +397,19 @@ export default function DetalleMateria() {
       {tab === 'guias' && (
         <div>
           {(esAdmin || esDocente) && (
-            <label className="inline-block mb-4 cursor-pointer bg-brand text-white px-4 py-2 rounded text-sm hover:bg-brand-dark transition">
-              {subiendo ? 'Subiendo...' : '+ Subir guía (Word / Excel / PDF)'}
-              <input
-                type="file"
-                className="hidden"
-                onChange={handleSubirGuia}
-                disabled={subiendo}
-                accept=".doc,.docx,.xls,.xlsx,.pdf"
-              />
-            </label>
+            <div className="mb-4">
+              <label className="inline-block cursor-pointer bg-brand text-white px-4 py-2 rounded text-sm hover:bg-brand-dark transition">
+                {subiendo ? 'Subiendo...' : '+ Subir guía (Word / Excel / PDF)'}
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleSubirGuia}
+                  disabled={subiendo}
+                  accept=".doc,.docx,.xls,.xlsx,.pdf"
+                />
+              </label>
+              <p className="text-xs text-gray-400 mt-1">Los estudiantes de esta materia podrán verla y descargarla de inmediato.</p>
+            </div>
           )}
 
           <div className="grid gap-2">
@@ -403,11 +423,11 @@ export default function DetalleMateria() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => descargarGuia(g)} className="text-brand text-sm hover:underline">
+                  <button onClick={() => descargarGuia(g)} className="text-brand text-sm hover:underline" title="Descarga el archivo a tu dispositivo">
                     Descargar
                   </button>
                   {(esAdmin || esDocente) && (
-                    <button onClick={() => pedirBorrarGuia(g)} className="text-red-500 text-sm hover:underline">
+                    <button onClick={() => pedirBorrarGuia(g)} className="text-red-500 text-sm hover:underline" title="Los estudiantes ya no podrán verla ni descargarla">
                       Borrar
                     </button>
                   )}

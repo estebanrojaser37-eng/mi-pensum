@@ -47,11 +47,14 @@ function VistaMaterias({ nombreEstudiante, porMateria, promedioGeneral, onVolver
       <h1 className="text-2xl font-bold mb-1">
         {nombreEstudiante ? `Récord de ${nombreEstudiante}` : 'Récord académico'}
       </h1>
-      <p className="text-gray-500 mb-6">
+      <p className="text-gray-500 mb-1">
         Promedio general:{' '}
         <span className="font-semibold text-brand">
           {promedioGeneral != null ? promedioGeneral.toFixed(2) : '— (sin calificar aún)'}
         </span>
+      </p>
+      <p className="text-xs text-gray-400 mb-6">
+        El promedio se calcula solo con las evaluaciones que ya tienen calificación. Las pendientes no cuentan todavía.
       </p>
 
       {porMateria.length === 0 && <p className="text-gray-400">Aún no hay entregas calificadas.</p>}
@@ -173,6 +176,9 @@ export default function Record() {
   if (!esAdmin && !esDocente) {
     return (
       <div className="p-6 max-w-3xl mx-auto">
+        <p className="text-xs text-gray-400 mb-4">
+          Aquí ves tus notas de cada materia. Se actualizan solas cuando tu profesor califica una entrega, no necesitas hacer nada.
+        </p>
         <VistaMaterias porMateria={propioRecord.lista} promedioGeneral={propioRecord.promedioGeneral} />
       </div>
     )
@@ -196,7 +202,11 @@ export default function Record() {
     <div className="p-6 max-w-3xl mx-auto">
       {dialogo && <Dialogo {...dialogo} onCancelar={() => setDialogo(null)} />}
       <h1 className="text-2xl font-bold mb-1">Récord académico — Estudiantes</h1>
-      <p className="text-gray-500 mb-6">{estudiantes.length} estudiante(s) registrado(s)</p>
+      <p className="text-gray-500 mb-1">{estudiantes.length} estudiante(s) registrado(s)</p>
+      <p className="text-xs text-gray-400 mb-6">
+        Toca el nombre de un estudiante para ver su récord completo por materia.
+        {esAdmin ? ' "Editar nombre" cambia cómo aparece en toda la app, no su correo de acceso.' : ''}
+      </p>
 
       {estudiantes.length === 0 && (
         <p className="text-gray-400">Aún no hay estudiantes registrados.</p>

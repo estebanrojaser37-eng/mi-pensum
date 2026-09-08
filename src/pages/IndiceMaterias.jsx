@@ -121,6 +121,16 @@ function ModalMateria({ onClose, onGuardada, anioSeleccionado, materiaEditar }) 
 
 const NOMBRE_ANIO = { 1: 'Primer año', 2: 'Segundo año', 3: 'Tercer año' }
 
+const ESTADOS = [
+  { valor: 'pendiente', etiqueta: 'Pendiente', colorBoton: 'bg-gray-100 text-gray-600', colorBadge: 'bg-gray-100 text-gray-500' },
+  { valor: 'en_curso', etiqueta: 'En curso', colorBoton: 'bg-yellow-100 text-yellow-700', colorBadge: 'bg-yellow-100 text-yellow-700' },
+  { valor: 'cursada', etiqueta: 'Cursada', colorBoton: 'bg-green-100 text-green-700', colorBadge: 'bg-green-100 text-green-700' },
+]
+
+function infoEstado(valor) {
+  return ESTADOS.find((e) => e.valor === valor) || ESTADOS[0]
+}
+
 export default function IndiceMaterias() {
   const [materias, setMaterias] = useState([])
   const [esAdmin, setEsAdmin] = useState(false)
@@ -129,6 +139,8 @@ export default function IndiceMaterias() {
   const [materiaEditar, setMateriaEditar] = useState(null)
   const [dialogo, setDialogo] = useState(null)
   const [anioActivo, setAnioActivo] = useState('todos')
+  const [moviendoId, setMoviendoId] = useState(null)
+  const [actualizandoEstadoId, setActualizandoEstadoId] = useState(null)
 
   useEffect(() => {
     cargarTodo()
@@ -189,6 +201,71 @@ export default function IndiceMaterias() {
     })
   }
 
+  // Intercambia el campo "orden" entre dos materias del mismo año
+  async function moverMateria(e, materia, listaDelAnio, indice, direccion) {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const nuevoIndice = indice + (direccion === 'arriba' ? -1 : 1)
+    if (nuevoIndice < 0 || nuevoIndice >= listaDelAnio.length) return
+
+    const vecina = listaDelAnio[nuevoIndice]
+    setMoviendoId(materia.id)
+
+    const ordenMateria = materia.orden
+    const ordenVecina = vecina.orden
+
+    // Actualización optimista para que se sienta instantáneo:
+    // actualiza el orden Y vuelve a ordenar el arreglo para reflejar la nueva posición
+    setMaterias((prev) => {
+      const actualizado = prev.map((m) => {
+        if (m.id === materia.id) return { ...m, orden: ordenVecina }
+        if (m.id === vecina.id) return { ...m, orden: ordenMateria }
+        return m
+      })
+      return [...actualizado].sort((a, b) => a.anio - b.anio || a.orden - b.orden)
+    })
+
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('materias').update({ orden: ordenVecina }).eq('id', materia.id),
+      supabase.from('materias').update({ orden: ordenMateria }).eq('id', vecina.id),
+    ])
+
+    setMoviendoId(null)
+
+    if (e1 || e2) {
+      // si algo falló, recarga desde la base para no dejar la UI desincronizada
+      cargarTodo()
+    }
+  }
+
+
+  async function cambiarEstado(e, materia, nuevoEstado) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (materia.estado === nuevoEstado) return
+
+    const estadoAnterior = materia.estado
+    setActualizandoEstadoId(materia.id)
+
+    setMaterias((prev) =>
+      prev.map((m) => (m.id === materia.id ? { ...m, estado: nuevoEstado } : m))
+    )
+
+    const { error } = await supabase
+      .from('materias')
+      .update({ estado: nuevoEstado })
+      .eq('id', materia.id)
+
+    setActualizandoEstadoId(null)
+
+    if (error) {
+      setMaterias((prev) =>
+        prev.map((m) => (m.id === materia.id ? { ...m, estado: estadoAnterior } : m))
+      )
+    }
+  }
+
   const materiasFiltradas =
     anioActivo === 'todos' ? materias : materias.filter((m) => m.anio === Number(anioActivo))
 
@@ -205,7 +282,19 @@ export default function IndiceMaterias() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Pensum</h1>
-      <p className="text-gray-500 mb-6">{materias.length} materias en total</p>
+      <p className="text-gray-500 mb-1">{materias.length} materias en total</p>
+      <p className="text-xs text-gray-400 mb-6">
+        <span className="inline-flex items-center gap-1 mr-3">
+          <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /> Pendiente
+        </span>
+        <span className="inline-flex items-center gap-1 mr-3">
+          <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> En curso
+        </span>
+        <span className="inline-flex items-center gap-1 mr-3">
+          <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Cursada
+        </span>
+        · Toca el nombre de una materia para ver sus guías y evaluaciones.
+      </p>
 
       <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
         <div className="flex gap-2 flex-wrap">
@@ -267,18 +356,59 @@ export default function IndiceMaterias() {
           <div key={anio} className="mb-8">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">{NOMBRE_ANIO[anio]}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              {lista.map((materia) => (
+              {lista.map((materia, indice) => (
                 <Link
                   key={materia.id}
                   to={`/materia/${materia.id}`}
                   className="block bg-white border rounded-lg p-4 hover:shadow-md transition relative"
                 >
-                  <p className="font-medium pr-2">{materia.nombre}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium pr-2">{materia.nombre}</p>
+                    <span className={'text-xs px-2 py-0.5 rounded-full flex-shrink-0 ' + infoEstado(materia.estado).colorBadge}>
+                      {infoEstado(materia.estado).etiqueta}
+                    </span>
+                  </div>
                   {materia.profesor && (
                     <p className="text-sm text-gray-500 mt-1">Prof. {materia.profesor}</p>
                   )}
                   {esAdmin && (
-                    <div className="flex gap-3 mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {ESTADOS.map((est) => (
+                        <button
+                          key={est.valor}
+                          onClick={(e) => cambiarEstado(e, materia, est.valor)}
+                          disabled={actualizandoEstadoId === materia.id}
+                          className={
+                            'text-xs px-2 py-1 rounded-full border transition disabled:opacity-50 ' +
+                            (materia.estado === est.valor
+                              ? est.colorBoton + ' border-transparent font-medium'
+                              : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300')
+                          }
+                        >
+                          {est.etiqueta}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {esAdmin && (
+                    <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={(e) => moverMateria(e, materia, lista, indice, 'arriba')}
+                        disabled={indice === 0 || moviendoId === materia.id}
+                        className="text-xs text-gray-500 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Mover arriba"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={(e) => moverMateria(e, materia, lista, indice, 'abajo')}
+                        disabled={indice === lista.length - 1 || moviendoId === materia.id}
+                        className="text-xs text-gray-500 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Mover abajo"
+                      >
+                        ↓
+                      </button>
+                      <span className="flex-1" />
                       <button
                         onClick={(e) => abrirEdicion(e, materia)}
                         className="text-xs text-brand hover:underline"
