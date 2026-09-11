@@ -36,6 +36,45 @@ function agruparPorMateria(entregas) {
   return { lista, promedioGeneral: contTotal ? sumaTotal / contTotal : null }
 }
 
+// Combina entregas de archivo (tabla "entregas") y exámenes estructurados
+// (tabla "examenes_entregados") en un solo formato que agruparPorMateria entiende.
+async function obtenerTodasLasCalificaciones(filtroUserId) {
+  let queryEntregas = supabase
+    .from('entregas')
+    .select('calificacion, user_id, evaluaciones(nombre, materias(id, nombre, anio))')
+
+  let queryExamenes = supabase
+    .from('examenes_entregados')
+    .select('calificacion_final, user_id, evaluaciones(nombre, materias(id, nombre, anio))')
+
+  if (filtroUserId) {
+    queryEntregas = queryEntregas.eq('user_id', filtroUserId)
+    queryExamenes = queryExamenes.eq('user_id', filtroUserId)
+  }
+
+  const [{ data: entregas, error: errorEntregas }, { data: examenes, error: errorExamenes }] = await Promise.all([
+    queryEntregas,
+    queryExamenes,
+  ])
+
+  const entregasNormalizadas = (entregas || []).map((e) => ({
+    calificacion: e.calificacion,
+    user_id: e.user_id,
+    evaluaciones: e.evaluaciones,
+  }))
+
+  const examenesNormalizados = (examenes || []).map((e) => ({
+    calificacion: e.calificacion_final,
+    user_id: e.user_id,
+    evaluaciones: e.evaluaciones,
+  }))
+
+  return {
+    datos: [...entregasNormalizadas, ...examenesNormalizados],
+    error: errorEntregas || errorExamenes,
+  }
+}
+
 function VistaMaterias({ nombreEstudiante, porMateria, promedioGeneral, onVolver }) {
   return (
     <div>
@@ -54,7 +93,7 @@ function VistaMaterias({ nombreEstudiante, porMateria, promedioGeneral, onVolver
         </span>
       </p>
       <p className="text-xs text-gray-400 mb-6">
-        El promedio se calcula solo con las evaluaciones que ya tienen calificación. Las pendientes no cuentan todavía.
+        El promedio se calcula solo con las evaluaciones que ya tienen calificación (incluye tanto archivos como exámenes en la app). Las pendientes no cuentan todavía.
       </p>
 
       {porMateria.length === 0 && <p className="text-gray-400">Aún no hay entregas calificadas.</p>}
@@ -141,12 +180,10 @@ export default function Record() {
         .select('id, nombre')
         .eq('role', 'usuario')
 
-      const { data: entregas } = await supabase
-        .from('entregas')
-        .select('calificacion, user_id, evaluaciones(nombre, materias(id, nombre, anio))')
+      const { datos: todasLasCalificaciones } = await obtenerTodasLasCalificaciones(null)
 
       const entregasPorUsuario = {}
-      for (const e of entregas || []) {
+      for (const e of todasLasCalificaciones) {
         entregasPorUsuario[e.user_id] = entregasPorUsuario[e.user_id] || []
         entregasPorUsuario[e.user_id].push(e)
       }
@@ -160,12 +197,8 @@ export default function Record() {
       lista.sort((a, b) => a.nombre.localeCompare(b.nombre))
       setEstudiantes(lista)
     } else {
-      const { data: entregas } = await supabase
-        .from('entregas')
-        .select('calificacion, evaluaciones(nombre, materias(id, nombre, anio))')
-        .eq('user_id', uid)
-
-      setPropioRecord(agruparPorMateria(entregas || []))
+      const { datos: misCalificaciones } = await obtenerTodasLasCalificaciones(uid)
+      setPropioRecord(agruparPorMateria(misCalificaciones))
     }
 
     setCargando(false)
@@ -177,7 +210,7 @@ export default function Record() {
     return (
       <div className="p-6 max-w-3xl mx-auto">
         <p className="text-xs text-gray-400 mb-4">
-          Aquí ves tus notas de cada materia. Se actualizan solas cuando tu profesor califica una entrega, no necesitas hacer nada.
+          Aquí ves tus notas de cada materia. Se actualizan solas cuando tu profesor califica una entrega o examen, no necesitas hacer nada.
         </p>
         <VistaMaterias porMateria={propioRecord.lista} promedioGeneral={propioRecord.promedioGeneral} />
       </div>
@@ -204,7 +237,7 @@ export default function Record() {
       <h1 className="text-2xl font-bold mb-1">Récord académico — Estudiantes</h1>
       <p className="text-gray-500 mb-1">{estudiantes.length} estudiante(s) registrado(s)</p>
       <p className="text-xs text-gray-400 mb-6">
-        Toca el nombre de un estudiante para ver su récord completo por materia.
+        Toca el nombre de un estudiante para ver su récord completo por materia (incluye archivos y exámenes en la app).
         {esAdmin ? ' "Editar nombre" cambia cómo aparece en toda la app, no su correo de acceso.' : ''}
       </p>
 
