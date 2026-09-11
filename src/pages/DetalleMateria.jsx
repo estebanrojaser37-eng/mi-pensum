@@ -934,11 +934,12 @@ export default function DetalleMateria() {
       })
     }
 
-    const { data, error } = await supabase.storage.from('guias').createSignedUrl(guia.storage_path, 300)
+    const { data, error } = await supabase.storage.from('guias').createSignedUrl(guia.storage_path, 3600)
     if (error) {
       return setDialogo({ tipo: 'alert', mensaje: 'No se pudo abrir el PDF: ' + error.message, onConfirmar: () => setDialogo(null) })
     }
-    setPdfAbierto({ url: data.signedUrl, nombre: guia.nombre_archivo })
+    const urlVisorGoogle = `https://docs.google.com/viewer?url=${encodeURIComponent(data.signedUrl)}&embedded=true`
+    setPdfAbierto({ url: urlVisorGoogle, nombre: guia.nombre_archivo })
   }
 
   function pedirBorrarGuia(guia) {
