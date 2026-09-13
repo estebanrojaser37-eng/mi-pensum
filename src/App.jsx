@@ -1,3 +1,4 @@
+import Usuarios from './pages/Usuarios.jsx'
 import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from './lib/supabase.js'
@@ -37,14 +38,15 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={autenticado ? <Layout /> : <Navigate to="/login" replace />}>
-        <Route path="/" element={<IndiceMaterias />} />
-        <Route path="/materia/:id" element={<DetalleMateria />} />
-        <Route path="/record" element={<Record />} />
-        <Route path="/perfil" element={<Perfil />} />
-        <Route path="/mensajes" element={<Mensajes />} />
-      </Route>
-    </Routes>
+  <Route path="/login" element={<Login />} />
+  <Route element={autenticado ? <Layout /> : <Navigate to="/login" replace />}>
+    <Route path="/" element={<IndiceMaterias />} />
+    <Route path="/materia/:id" element={<DetalleMateria />} />
+    <Route path="/record" element={<Record />} />
+    <Route path="/perfil" element={<Perfil />} />
+    <Route path="/mensajes" element={<Mensajes />} />
+    <Route path="/usuarios" element={<Usuarios />} />
+  </Route>
+</Routes>
   )
 }

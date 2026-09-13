@@ -138,6 +138,7 @@ export default function Record() {
   const [estudiantes, setEstudiantes] = useState([])
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null)
   const [propioRecord, setPropioRecord] = useState(null)
+  const [vistaActiva, setVistaActiva] = useState('estudiantes') // 'estudiantes' | 'propio', solo aplica a admin/docente
   const [dialogo, setDialogo] = useState(null)
 
   function editarNombre(estudiante) {
@@ -196,6 +197,11 @@ export default function Record() {
 
       lista.sort((a, b) => a.nombre.localeCompare(b.nombre))
       setEstudiantes(lista)
+
+      // Además de la lista de estudiantes, cargamos el récord PROPIO de este admin/docente,
+      // por si también cursa alguna materia como alumno (ej. un docente que da 2do año y cursa 3ro).
+      const misCalificacionesPropias = todasLasCalificaciones.filter((c) => c.user_id === uid)
+      setPropioRecord(agruparPorMateria(misCalificacionesPropias))
     } else {
       const { datos: misCalificaciones } = await obtenerTodasLasCalificaciones(uid)
       setPropioRecord(agruparPorMateria(misCalificaciones))
@@ -231,45 +237,71 @@ export default function Record() {
     )
   }
 
+  const tieneRecordPropio = propioRecord && propioRecord.lista.length > 0
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {dialogo && <Dialogo {...dialogo} onCancelar={() => setDialogo(null)} />}
-      <h1 className="text-2xl font-bold mb-1">Récord académico — Estudiantes</h1>
-      <p className="text-gray-500 mb-1">{estudiantes.length} estudiante(s) registrado(s)</p>
-      <p className="text-xs text-gray-400 mb-6">
-        Toca el nombre de un estudiante para ver su récord completo por materia (incluye archivos y exámenes en la app).
-        {esAdmin ? ' "Editar nombre" cambia cómo aparece en toda la app, no su correo de acceso.' : ''}
-      </p>
 
-      {estudiantes.length === 0 && (
-        <p className="text-gray-400">Aún no hay estudiantes registrados.</p>
+      {tieneRecordPropio && (
+        <div className="flex gap-2 mb-6 border-b">
+          <button
+            onClick={() => setVistaActiva('estudiantes')}
+            className={`px-4 py-2 text-sm ${vistaActiva === 'estudiantes' ? 'border-b-2 border-brand text-brand font-medium' : 'text-gray-500'}`}
+          >
+            Estudiantes
+          </button>
+          <button
+            onClick={() => setVistaActiva('propio')}
+            className={`px-4 py-2 text-sm ${vistaActiva === 'propio' ? 'border-b-2 border-brand text-brand font-medium' : 'text-gray-500'}`}
+          >
+            Mis notas
+          </button>
+        </div>
       )}
 
-      <div className="grid gap-2">
-        {estudiantes.map((est) => (
-          <div
-            key={est.id}
-            className="bg-white border rounded-lg p-4 flex justify-between items-center hover:shadow-md transition"
-          >
-            <button onClick={() => setEstudianteSeleccionado(est)} className="text-left flex-1">
-              <span className="font-medium">{est.nombre}</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-brand">
-                {est.promedioGeneral != null ? est.promedioGeneral.toFixed(2) : 'Sin calificar'}
-              </span>
-              {esAdmin && (
-                <button
-                  onClick={() => editarNombre(est)}
-                  className="text-xs text-gray-400 hover:text-brand hover:underline"
-                >
-                  Editar nombre
+      {vistaActiva === 'propio' && tieneRecordPropio ? (
+        <VistaMaterias porMateria={propioRecord.lista} promedioGeneral={propioRecord.promedioGeneral} />
+      ) : (
+        <>
+          <h1 className="text-2xl font-bold mb-1">Récord académico — Estudiantes</h1>
+          <p className="text-gray-500 mb-1">{estudiantes.length} estudiante(s) registrado(s)</p>
+          <p className="text-xs text-gray-400 mb-6">
+            Toca el nombre de un estudiante para ver su récord completo por materia (incluye archivos y exámenes en la app).
+            {esAdmin ? ' "Editar nombre" cambia cómo aparece en toda la app, no su correo de acceso.' : ''}
+          </p>
+
+          {estudiantes.length === 0 && (
+            <p className="text-gray-400">Aún no hay estudiantes registrados.</p>
+          )}
+
+          <div className="grid gap-2">
+            {estudiantes.map((est) => (
+              <div
+                key={est.id}
+                className="bg-white border rounded-lg p-4 flex justify-between items-center hover:shadow-md transition"
+              >
+                <button onClick={() => setEstudianteSeleccionado(est)} className="text-left flex-1">
+                  <span className="font-medium">{est.nombre}</span>
                 </button>
-              )}
-            </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-brand">
+                    {est.promedioGeneral != null ? est.promedioGeneral.toFixed(2) : 'Sin calificar'}
+                  </span>
+                  {esAdmin && (
+                    <button
+                      onClick={() => editarNombre(est)}
+                      className="text-xs text-gray-400 hover:text-brand hover:underline"
+                    >
+                      Editar nombre
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   )
 }

@@ -98,6 +98,7 @@ export default function Layout() {
             <Link to="/mensajes" className="hover:underline">Mensajes</Link>
             <Link to="/record" className="hover:underline">Récord académico</Link>
             <Link to="/perfil" className="hover:underline">Mi perfil</Link>
+            {esAdmin && <Link to="/usuarios" className="hover:underline">Usuarios</Link>}
           </nav>
         </div>
       </header>

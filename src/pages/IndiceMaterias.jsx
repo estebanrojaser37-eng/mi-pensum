@@ -11,6 +11,42 @@ function ModalMateria({ onClose, onGuardada, anioSeleccionado, materiaEditar }) 
   const [fecha, setFecha] = useState(materiaEditar?.fecha || '')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [docentesDisponibles, setDocentesDisponibles] = useState([])
+  const [docentesSeleccionados, setDocentesSeleccionados] = useState([])
+
+  useEffect(() => {
+    cargarDocentesDisponibles()
+    if (esEdicion) cargarDocentesAsignados()
+  }, [])
+
+  async function cargarDocentesDisponibles() {
+    const { data } = await supabase.from('profiles').select('id, nombre').eq('role', 'docente')
+    setDocentesDisponibles(data || [])
+  }
+
+  async function cargarDocentesAsignados() {
+    const { data } = await supabase
+      .from('materia_docentes')
+      .select('profile_id')
+      .eq('materia_id', materiaEditar.id)
+    setDocentesSeleccionados((data || []).map((d) => d.profile_id))
+  }
+
+  function toggleDocente(id) {
+    setDocentesSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+    )
+  }
+
+  async function guardarAsignacionesDocentes(materiaId) {
+    // Estrategia simple: borrar todas las asignaciones actuales y volver a crear las seleccionadas
+    await supabase.from('materia_docentes').delete().eq('materia_id', materiaId)
+    if (docentesSeleccionados.length > 0) {
+      await supabase.from('materia_docentes').insert(
+        docentesSeleccionados.map((profile_id) => ({ materia_id: materiaId, profile_id }))
+      )
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -34,8 +70,13 @@ function ModalMateria({ onClose, onGuardada, anioSeleccionado, materiaEditar }) 
         })
         .eq('id', materiaEditar.id)
 
+      if (errorUpdate) {
+        setGuardando(false)
+        return setError(errorUpdate.message)
+      }
+
+      await guardarAsignacionesDocentes(materiaEditar.id)
       setGuardando(false)
-      if (errorUpdate) return setError(errorUpdate.message)
       return onGuardada()
     }
 
@@ -44,16 +85,25 @@ function ModalMateria({ onClose, onGuardada, anioSeleccionado, materiaEditar }) 
       .select('*', { count: 'exact', head: true })
       .eq('anio', anio)
 
-    const { error: errorInsert } = await supabase.from('materias').insert({
-      nombre: nombre.trim(),
-      anio: Number(anio),
-      orden: (count || 0) + 1,
-      profesor: profesor.trim() || null,
-      fecha: fecha || null,
-    })
+    const { data: materiaCreada, error: errorInsert } = await supabase
+      .from('materias')
+      .insert({
+        nombre: nombre.trim(),
+        anio: Number(anio),
+        orden: (count || 0) + 1,
+        profesor: profesor.trim() || null,
+        fecha: fecha || null,
+      })
+      .select()
+      .single()
 
+    if (errorInsert) {
+      setGuardando(false)
+      return setError(errorInsert.message)
+    }
+
+    await guardarAsignacionesDocentes(materiaCreada.id)
     setGuardando(false)
-    if (errorInsert) return setError(errorInsert.message)
     onGuardada()
   }
 
@@ -98,6 +148,26 @@ function ModalMateria({ onClose, onGuardada, anioSeleccionado, materiaEditar }) 
             onChange={(e) => setFecha(e.target.value)}
             className="w-full border rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-brand"
           />
+
+          <label className="block text-sm font-medium mb-1">Docentes asignados</label>
+          <p className="text-xs text-gray-400 mb-2">
+            Solo estas personas podrán subir guías, crear evaluaciones y calificar esta materia (aunque su cuenta también curse otras materias como alumno).
+          </p>
+          <div className="border rounded max-h-32 overflow-y-auto mb-4">
+            {docentesDisponibles.length === 0 && (
+              <p className="text-xs text-gray-400 p-2">No hay cuentas con rol "docente" todavía.</p>
+            )}
+            {docentesDisponibles.map((d) => (
+              <label key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm border-b last:border-0 cursor-pointer hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={docentesSeleccionados.includes(d.id)}
+                  onChange={() => toggleDocente(d.id)}
+                />
+                {d.nombre || 'Sin nombre'}
+              </label>
+            ))}
+          </div>
 
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
 

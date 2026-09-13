@@ -840,6 +840,7 @@ export default function DetalleMateria() {
   const [evaluaciones, setEvaluaciones] = useState([])
   const [esAdmin, setEsAdmin] = useState(false)
   const [esDocente, setEsDocente] = useState(false)
+  const [esDocenteDeEstaMateria, setEsDocenteDeEstaMateria] = useState(false)
   const [userId, setUserId] = useState(null)
   const [tab, setTab] = useState('guias')
   const [subiendo, setSubiendo] = useState(false)
@@ -862,8 +863,20 @@ export default function DetalleMateria() {
 
     if (uid) {
       const { data: perfil } = await supabase.from('profiles').select('role').eq('id', uid).single()
-      setEsAdmin(perfil?.role === 'admin')
+      const admin = perfil?.role === 'admin'
+      setEsAdmin(admin)
       setEsDocente(perfil?.role === 'docente')
+
+      const { data: asignacion } = await supabase
+        .from('materia_docentes')
+        .select('id')
+        .eq('materia_id', id)
+        .eq('profile_id', uid)
+        .maybeSingle()
+
+      // El admin siempre tiene vista de docente; cualquier otra cuenta solo si está
+      // asignada específicamente a ESTA materia (independiente de su rol global).
+      setEsDocenteDeEstaMateria(admin || !!asignacion)
     }
 
     const { data: m } = await supabase.from('materias').select('*').eq('id', id).single()
@@ -1012,7 +1025,7 @@ export default function DetalleMateria() {
 
       {tab === 'guias' && (
         <div>
-          {(esAdmin || esDocente) && (
+          {esDocenteDeEstaMateria && (
             <div className="mb-4">
               <label className="inline-block cursor-pointer bg-brand text-white px-4 py-2 rounded text-sm hover:bg-brand-dark transition">
                 {subiendo ? 'Subiendo...' : '+ Subir guía (Word / Excel / PDF)'}
@@ -1047,7 +1060,7 @@ export default function DetalleMateria() {
                   <button onClick={() => descargarGuia(g)} className="text-brand text-sm hover:underline" title="Descarga el archivo a tu dispositivo">
                     Descargar
                   </button>
-                  {(esAdmin || esDocente) && (
+                  {esDocenteDeEstaMateria && (
                     <button onClick={() => pedirBorrarGuia(g)} className="text-red-500 text-sm hover:underline" title="Los estudiantes ya no podrán verla ni descargarla">
                       Borrar
                     </button>
@@ -1062,7 +1075,7 @@ export default function DetalleMateria() {
 
       {tab === 'evaluaciones' && (
         <div>
-          {(esAdmin || esDocente) && (
+          {esDocenteDeEstaMateria && (
             <button
               onClick={() => setModalEvaluacionAbierto(true)}
               className="mb-4 bg-brand text-white px-4 py-2 rounded text-sm hover:bg-brand-dark transition"
@@ -1074,11 +1087,11 @@ export default function DetalleMateria() {
           <div className="grid gap-2">
             {evaluaciones.map((ev) => {
               if (ev.formato === 'examen') {
-                return (esAdmin || esDocente)
+                return esDocenteDeEstaMateria
                   ? <ExamenAdmin key={ev.id} evaluacion={ev} onBorrar={pedirBorrarEvaluacion} />
                   : <ExamenEstudiante key={ev.id} evaluacion={ev} userId={userId} />
               }
-              return (esAdmin || esDocente)
+              return esDocenteDeEstaMateria
                 ? <FilaEvaluacionAdmin key={ev.id} evaluacion={ev} onBorrar={pedirBorrarEvaluacion} />
                 : <FilaEvaluacionEstudiante key={ev.id} evaluacion={ev} userId={userId} />
             })}
